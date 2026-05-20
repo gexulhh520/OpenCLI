@@ -1,3 +1,6 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { cli, Strategy } from '@jackwener/opencli/registry';
 import { ArgumentError } from '@jackwener/opencli/errors';
 import { GEMINI_DOMAIN, readGeminiSnapshot, sendGeminiMessage, startNewGeminiChat, waitForGeminiResponse, waitForGeminiSubmission } from './utils.js';
@@ -6,6 +9,24 @@ function normalizeBooleanFlag(value) {
         return value;
     const normalized = String(value ?? '').trim().toLowerCase();
     return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+}
+function resolveFilePath(filePath) {
+    if (filePath.startsWith('~/')) {
+        return path.join(os.homedir(), filePath.slice(2));
+    }
+    return path.resolve(filePath);
+}
+function readPromptFromFile(filePath) {
+    const resolvedPath = resolveFilePath(filePath);
+    if (!fs.existsSync(resolvedPath)) {
+        throw new ArgumentError(`File not found: ${filePath}`);
+    }
+    try {
+        const content = fs.readFileSync(resolvedPath, 'utf-8');
+        return content.trim();
+    } catch (err) {
+        throw new ArgumentError(`Failed to read file: ${filePath}`, err instanceof Error ? err.message : String(err));
+    }
 }
 const NO_RESPONSE_PREFIX = '[NO RESPONSE]';
 export const askCommand = cli({
@@ -20,13 +41,24 @@ export const askCommand = cli({
     navigateBefore: false,
     defaultFormat: 'plain',
     args: [
-        { name: 'prompt', required: true, positional: true, help: 'Prompt to send' },
+        { name: 'prompt', required: false, positional: true, help: 'Prompt to send' },
+        { name: 'file-prompt', help: 'Path to a text file containing the prompt' },
         { name: 'timeout', type: 'int', required: false, help: 'Max seconds to wait (default: 60)', default: 60 },
         { name: 'new', required: false, help: 'Start a new chat first (true/false, default: false)', default: 'false' },
     ],
     columns: ['response'],
     func: async (page, kwargs) => {
-        const prompt = kwargs.prompt;
+        let prompt;
+        if (kwargs['file-prompt']) {
+            prompt = readPromptFromFile(kwargs['file-prompt']);
+        } else if (kwargs.prompt) {
+            prompt = kwargs.prompt;
+        } else {
+            throw new ArgumentError(
+                'gemini ask requires either a prompt argument or --file-prompt',
+                'Example: opencli gemini ask "hello"  OR  opencli gemini ask --file-prompt ./prompt.txt'
+            );
+        }
         const timeout = kwargs.timeout;
         if (!Number.isInteger(timeout) || timeout < 1) {
             throw new ArgumentError('--timeout must be a positive integer (seconds)');

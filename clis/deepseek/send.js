@@ -1,11 +1,34 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { cli, Strategy } from '@jackwener/opencli/registry';
-import { CommandExecutionError } from '@jackwener/opencli/errors';
+import { CommandExecutionError, ArgumentError } from '@jackwener/opencli/errors';
 import {
     DEEPSEEK_DOMAIN,
     MESSAGE_SELECTOR,
     TEXTAREA_SELECTOR,
     parseDeepSeekConversationId,
 } from './utils.js';
+
+function resolveFilePath(filePath) {
+    if (filePath.startsWith('~/')) {
+        return path.join(os.homedir(), filePath.slice(2));
+    }
+    return path.resolve(filePath);
+}
+
+function readPromptFromFile(filePath) {
+    const resolvedPath = resolveFilePath(filePath);
+    if (!fs.existsSync(resolvedPath)) {
+        throw new ArgumentError(`File not found: ${filePath}`);
+    }
+    try {
+        const content = fs.readFileSync(resolvedPath, 'utf-8');
+        return content.trim();
+    } catch (err) {
+        throw new ArgumentError(`Failed to read file: ${filePath}`, err instanceof Error ? err.message : String(err));
+    }
+}
 
 export const sendCommand = cli({
     site: 'deepseek',
@@ -19,13 +42,24 @@ export const sendCommand = cli({
     navigateBefore: false,
     args: [
         { name: 'id', required: true, positional: true, help: 'Conversation ID (UUID) or full /a/chat/s/<id> URL' },
-        { name: 'prompt', required: true, positional: true, help: 'Prompt to send' },
+        { name: 'prompt', required: false, positional: true, help: 'Prompt to send' },
+        { name: 'file-prompt', help: 'Path to a text file containing the prompt' },
         { name: 'timeout', type: 'int', required: false, default: 60, help: 'Max seconds for the overall command (default: 60)' },
     ],
     columns: ['Status', 'InjectedText'],
     func: async (page, kwargs) => {
         const id = parseDeepSeekConversationId(kwargs.id);
-        const prompt = kwargs.prompt;
+        let prompt;
+        if (kwargs['file-prompt']) {
+            prompt = readPromptFromFile(kwargs['file-prompt']);
+        } else if (kwargs.prompt) {
+            prompt = kwargs.prompt;
+        } else {
+            throw new ArgumentError(
+                'deepseek send requires either a prompt argument or --file-prompt',
+                'Example: opencli deepseek send <id> "hello"  OR  opencli deepseek send <id> --file-prompt ./prompt.txt'
+            );
+        }
 
         // Navigate directly to the target conversation. The framework runs
         // each browser command in an ephemeral per-command workspace (tab),

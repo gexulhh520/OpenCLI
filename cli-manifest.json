@@ -4729,9 +4729,15 @@
       {
         "name": "prompt",
         "type": "str",
-        "required": true,
+        "required": false,
         "positional": true,
         "help": "Prompt to send"
+      },
+      {
+        "name": "file-prompt",
+        "type": "str",
+        "required": false,
+        "help": "Path to a text file containing the prompt"
       },
       {
         "name": "new",
@@ -5313,9 +5319,15 @@
       {
         "name": "prompt",
         "type": "str",
-        "required": true,
+        "required": false,
         "positional": true,
         "help": "Prompt to send"
+      },
+      {
+        "name": "file-prompt",
+        "type": "str",
+        "required": false,
+        "help": "Path to a text file containing the prompt"
       },
       {
         "name": "new",
@@ -7040,9 +7052,15 @@
       {
         "name": "prompt",
         "type": "str",
-        "required": true,
+        "required": false,
         "positional": true,
         "help": "Prompt to send"
+      },
+      {
+        "name": "file-prompt",
+        "type": "str",
+        "required": false,
+        "help": "Path to a text file containing the prompt"
       },
       {
         "name": "timeout",
@@ -8347,9 +8365,15 @@
       {
         "name": "text",
         "type": "str",
-        "required": true,
+        "required": false,
         "positional": true,
         "help": "Message to send"
+      },
+      {
+        "name": "file-prompt",
+        "type": "str",
+        "required": false,
+        "help": "Path to a text file containing the prompt"
       }
     ],
     "columns": [
@@ -10267,9 +10291,15 @@
       {
         "name": "prompt",
         "type": "str",
-        "required": true,
+        "required": false,
         "positional": true,
         "help": "Prompt to send"
+      },
+      {
+        "name": "file-prompt",
+        "type": "str",
+        "required": false,
+        "help": "Path to a text file containing the prompt"
       },
       {
         "name": "timeout",
@@ -11244,9 +11274,15 @@
       {
         "name": "prompt",
         "type": "str",
-        "required": true,
+        "required": false,
         "positional": true,
         "help": "Prompt to send to Grok"
+      },
+      {
+        "name": "file-prompt",
+        "type": "str",
+        "required": false,
+        "help": "Path to a text file containing the prompt"
       },
       {
         "name": "new",
@@ -19960,9 +19996,15 @@
       {
         "name": "prompt",
         "type": "str",
-        "required": true,
+        "required": false,
         "positional": true,
         "help": "Prompt to send to Qianwen"
+      },
+      {
+        "name": "file-prompt",
+        "type": "str",
+        "required": false,
+        "help": "Path to a text file containing the prompt"
       },
       {
         "name": "new",
@@ -30001,9 +30043,15 @@
       {
         "name": "prompt",
         "type": "str",
-        "required": true,
+        "required": false,
         "positional": true,
         "help": "Prompt to send to Yuanbao"
+      },
+      {
+        "name": "file-prompt",
+        "type": "str",
+        "required": false,
+        "help": "Path to a text file containing the prompt"
       },
       {
         "name": "new",

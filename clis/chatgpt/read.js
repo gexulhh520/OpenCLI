@@ -4,6 +4,7 @@ import {
     CHATGPT_DOMAIN,
     ensureChatGPTLogin,
     ensureOnChatGPT,
+    getPageState,
     getVisibleMessages,
     messageHtmlToMarkdown,
     normalizeBooleanFlag,
@@ -29,7 +30,13 @@ export const readCommand = cli({
         // so the previous standalone 2 s settle is redundant.
         await ensureOnChatGPT(page);
         await ensureChatGPTLogin(page, 'ChatGPT read requires a logged-in ChatGPT session.');
+        // Debug: log page state
+        const pageState = await getPageState(page);
+        console.error('[DEBUG] Page state:', JSON.stringify(pageState));
+        const currentUrl = await page.evaluate('window.location.href').catch(() => '');
+        console.error('[DEBUG] Current URL:', currentUrl);
         const messages = await getVisibleMessages(page);
+        console.error('[DEBUG] Messages found:', messages.length);
         if (!messages.length) {
             throw new EmptyResultError('chatgpt read', 'No visible ChatGPT messages were found in the current conversation.');
         }

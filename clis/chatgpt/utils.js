@@ -304,7 +304,26 @@ export async function sendChatGPTMessage(page, text) {
 
     const typeResult = requireBooleanEvaluateResult(unwrapEvaluateResult(await page.evaluate(`
         (() => {
-            ${buildComposerLocatorScript()}
+            const isVisible = (el) => {
+                if (!(el instanceof HTMLElement)) return false;
+                const style = window.getComputedStyle(el);
+                if (style.display === 'none' || style.visibility === 'hidden') return false;
+                const rect = el.getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0;
+            };
+            const markerAttr = 'data-opencli-chatgpt-composer';
+            const findComposer = () => {
+                const marked = document.querySelector('[' + markerAttr + '="1"]');
+                if (marked instanceof HTMLElement && isVisible(marked)) return marked;
+                for (const selector of ${JSON.stringify(COMPOSER_SELECTORS)}) {
+                    const node = Array.from(document.querySelectorAll(selector)).find(c => c instanceof HTMLElement && isVisible(c));
+                    if (node instanceof HTMLElement) {
+                        node.setAttribute(markerAttr, '1');
+                        return node;
+                    }
+                }
+                return null;
+            };
             const composer = findComposer();
             if (!composer) return false;
             composer.focus();
