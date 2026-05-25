@@ -14,10 +14,11 @@ import {
 } from './shared.js';
 
 function resolveFilePath(filePath) {
-    if (filePath.startsWith('~/')) {
-        return path.join(os.homedir(), filePath.slice(2));
+    const pathStr = Array.isArray(filePath) ? filePath[0] : String(filePath ?? '');
+    if (pathStr.startsWith('~/')) {
+        return path.join(os.homedir(), pathStr.slice(2));
     }
-    return path.resolve(filePath);
+    return path.resolve(pathStr);
 }
 
 function readPromptFromFile(filePath) {
@@ -74,7 +75,82 @@ cli({
                 throw authRequired('Yuanbao opened a login gate while starting a new chat.');
             }
         }
-        const send = await sendYuanbaoMessage(page, prompt);
+
+        // Try to use nativeType first for better multi-line text support
+        let useNativeType = false;
+        try {
+            if (typeof page.nativeType === 'function') {
+                // Focus the composer first
+                await page.evaluate(`(() => {
+                    const composer = Array.from(document.querySelectorAll('.ql-editor[contenteditable="true"], .ql-editor, [contenteditable="true"]'))
+                        .find(node => {
+                            if (!(node instanceof HTMLElement)) return false;
+                            const rect = node.getBoundingClientRect();
+                            const style = window.getComputedStyle(node);
+                            return rect.width > 0 && rect.height > 0
+                                && style.display !== 'none'
+                                && style.visibility !== 'hidden';
+                        });
+                    if (composer instanceof HTMLElement) {
+                        composer.focus();
+                        composer.textContent = '';
+                    }
+                })()`);
+                await page.nativeType(prompt);
+                useNativeType = true;
+            }
+        } catch (e) {
+            // nativeType failed, will fall back to sendYuanbaoMessage
+            useNativeType = false;
+        }
+
+        // If nativeType succeeded, just trigger the send action
+        // Otherwise, use the original sendYuanbaoMessage which includes text insertion
+        let send;
+        if (useNativeType) {
+            send = await page.evaluate(`(async () => {
+                const waitFor = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+                const isVisible = (node) => {
+                    if (!(node instanceof HTMLElement)) return false;
+                    const rect = node.getBoundingClientRect();
+                    const style = window.getComputedStyle(node);
+                    return rect.width > 0 && rect.height > 0
+                        && style.display !== 'none'
+                        && style.visibility !== 'hidden';
+                };
+
+                const findEnabledSubmit = () => Array.from(document.querySelectorAll('a[class*="send-btn"], button[class*="send-btn"]'))
+                    .find((node) => {
+                        if (!(node instanceof HTMLElement) || !isVisible(node)) return false;
+                        const className = typeof node.className === 'string' ? node.className : '';
+                        return !className.includes('send-btn--disabled') && !className.includes('disabled');
+                    });
+
+                let submit = null;
+                const deadline = Date.now() + 3_000;
+                while (Date.now() < deadline) {
+                    submit = findEnabledSubmit();
+                    if (submit) break;
+                    await waitFor(150);
+                }
+
+                if (submit instanceof HTMLElement) {
+                    submit.click();
+                    return { ok: true, action: 'click' };
+                }
+
+                const composer = Array.from(document.querySelectorAll('.ql-editor[contenteditable="true"], .ql-editor, [contenteditable="true"]'))
+                    .find(isVisible);
+                if (composer instanceof HTMLElement) {
+                    composer.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                    composer.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                }
+                return { ok: true, action: 'enter' };
+            })()`);
+        } else {
+            send = await sendYuanbaoMessage(page, prompt);
+        }
+
         if (!send?.ok) {
             if (await hasLoginGate(page)) {
                 throw authRequired('Yuanbao opened a login gate instead of accepting the prompt.');

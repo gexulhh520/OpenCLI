@@ -6,10 +6,11 @@ import { ArgumentError } from '@jackwener/opencli/errors';
 import { DOUBAO_DOMAIN, sendDoubaoMessage } from './utils.js';
 
 function resolveFilePath(filePath) {
-    if (filePath.startsWith('~/')) {
-        return path.join(os.homedir(), filePath.slice(2));
+    const pathStr = Array.isArray(filePath) ? filePath[0] : String(filePath ?? '');
+    if (pathStr.startsWith('~/')) {
+        return path.join(os.homedir(), pathStr.slice(2));
     }
-    return path.resolve(filePath);
+    return path.resolve(pathStr);
 }
 
 function readPromptFromFile(filePath) {

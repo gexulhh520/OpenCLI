@@ -143,22 +143,26 @@ function getTurnsScript() {
       };
 
       const getRole = (root) => {
+        // 2026-05-24 Update: Handle v_list_row wrapper - check children for role indicators
+        const isVListRow = root.matches('.v_list_row');
+        const targetEl = isVListRow ? root : document.createElement('div');
+        const checkSelector = (sel) => {
+          if (isVListRow) {
+            return root.querySelector(sel) !== null;
+          }
+          return root.matches(sel) || root.querySelector(sel);
+        };
+
         if (
-          root.matches('[data-testid="send_message"], [class*="send-message"]')
-          || root.querySelector('[data-testid="send_message"], [class*="send-message"]')
-          || root.matches('[class*="bg-g-send-msg-bubble"]')
-          ||
-          root.querySelector('[class*="bg-g-send-msg-bubble"]')
+          checkSelector('[data-testid="send_message"], [class*="send-message"]')
+          || checkSelector('[class*="bg-g-send-msg-bubble"]')
           || root.querySelector('[data-foundation-type="send-message-action-bar"]')
         ) {
           return 'User';
         }
         if (
-          root.matches('[data-testid="receive_message"], [data-testid*="receive_message"], [class*="receive-message"]')
-          || root.querySelector('[data-testid="receive_message"], [data-testid*="receive_message"], [class*="receive-message"]')
-          || root.matches('[class*="bg-g-receive-msg-bubble"]')
-          ||
-          root.querySelector('[class*="bg-g-receive-msg-bubble"]')
+          checkSelector('[data-testid="receive_message"], [data-testid*="receive_message"], [class*="receive-message"]')
+          || checkSelector('[class*="bg-g-receive-msg-bubble"]')
           || root.querySelector('[data-foundation-type="receive-message-action-bar"]')
         ) {
           return 'Assistant';
@@ -172,6 +176,25 @@ function getTurnsScript() {
             || root.closest('[class*="inner-item-"], [class*="top-item-"]'))
           && (root.matches('.flow-markdown-body') || root.querySelector('.flow-markdown-body'))
           && !root.matches('[class*="bg-g-send-msg-bubble"]')
+          && !root.querySelector('[class*="bg-g-send-msg-bubble"]')
+        ) {
+          return 'Assistant';
+        }
+        // 2026-05-24 Update: New DOM structure uses container-xxx + flow-markdown-body
+        // for assistant messages without inner-item/top-item wrappers
+        if (
+          root.matches('.flow-markdown-body')
+          && root.matches('[class*="container-"]')
+          && !root.matches('[class*="bg-g-send-msg-bubble"]')
+          && !root.querySelector('[class*="bg-g-send-msg-bubble"]')
+          && !root.closest('[class*="bg-g-send-msg-bubble"]')
+        ) {
+          return 'Assistant';
+        }
+        // 2026-05-24 Update: Handle v_list_row with flow-markdown-body (AI message)
+        if (
+          isVListRow
+          && root.querySelector('.flow-markdown-body')
           && !root.querySelector('[class*="bg-g-send-msg-bubble"]')
         ) {
           return 'Assistant';
@@ -232,10 +255,14 @@ function getTurnsScript() {
         return text ? text + '\\n' + imageLines.join('\\n') : imageLines.join('\\n');
       };
 
-      const messageList = document.querySelector('[class*="message-list-S2Fv2S"], .container-PvPoAn, .scroll-view-OEiNXD, [data-testid="message-list"]');
+      const messageList = document.querySelector('[class*="v_list-"], [class*="message-list-S2Fv2S"], .container-PvPoAn, .scroll-view-OEiNXD, [data-testid="message-list"]');
       if (!messageList) return [];
 
       const itemSelectors = [
+        // 2026-05-24 Update: New DOM structure - v_list_row as message wrapper
+        '.v_list_row',
+        // 2026-05-24 Update: New DOM structure for assistant messages
+        '.flow-markdown-body[class*="container-"]',
         // 2026-05 Doubao DOM refactor wrappers (prepended; outer ones win via
         // ancestor-keep dedup below).
         '[class*="inner-item-"]',
